@@ -23,8 +23,8 @@ import glob
 
 
 def call(cmd):
-	print('$ %s' % cmd)
-	os.system(cmd)
+	print('+ %s' % cmd)
+	subprocess.check_call(cmd, shell=True)
 #enddef
 
 
