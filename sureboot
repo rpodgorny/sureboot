@@ -156,17 +156,17 @@ def remove(dev):
 
 	# /boot can be mounted from the removed drive so unmount it just to be sure
 	call('umount /boot')
-	call('systemctl stop boot.mount')
+	#call('systemctl stop boot.mount')
 
 	call('btrfs device delete %s3 /' % dev)
 	call('wipefs %s3' % dev)
-	call('swapoff %s2' % dev)
+	call('swapoff %s2 || true' % dev)
 	call('wipefs %s1' % dev)
 
 	call('dd if=/dev/zero of=%s bs=512 count=1' % dev)
 
 	call('mount /boot')
-	call('systemctl start boot.mount')
+	#call('systemctl start boot.mount')
 #enddef
 
 
