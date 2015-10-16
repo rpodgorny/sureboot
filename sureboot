@@ -5,13 +5,14 @@ SureBoot.
 
 Usage:
   sureboot [update]
-  sureboot add <device>
+  sureboot add <device> [--gpt]
   sureboot remove <device>
 
 Arguments:
   <device>  Target device.
 
 Options:
+  --gpt       Use GPT.
   -h, --help  This screen.
 '''
 
@@ -86,6 +87,7 @@ def update():
 	call('fsck.vfat -a %s' % boot_part)
 	call('mount %s /boot' % boot_part)
 
+	# TODO: use some temporary directory
 	call('mkdir /tmp/sureboot')
 
 	for part in boot_parts:
@@ -109,12 +111,15 @@ def update():
 #enddef
 
 
-def add(dev):
+def add(dev, use_gpt=False):
 	if glob.glob('%s?' % dev):
 		raise Exception('%s does not seem to be empty drive' % dev)
 	#endif
 
-	cmd = '''echo "n
+	if use_gpt:
+		cmd = 'parted --script -a optimal %s -- mklabel gpt mkpart primary fat32 0GB 100MB mkpart primary linux-swap 100MB 1.1GB mkpart primary btrfs 1.1GB -0GB' % dev
+	else:
+		cmd = '''echo "n
 p
 1
 
@@ -140,7 +145,11 @@ a
 w
 q
 " | fdisk %s''' % dev
+	#endif
+
 	call(cmd)
+
+	call('partprobe')
 
 	assert set(glob.glob('%s?' % dev)) == set('%s%d' % (dev, i) for i in range(1, 4))
 
@@ -163,7 +172,9 @@ def remove(dev):
 	call('swapoff %s2 || true' % dev)
 	call('wipefs %s1' % dev)
 
-	call('dd if=/dev/zero of=%s bs=512 count=1' % dev)
+	call('dd if=/dev/zero of=%s bs=10M count=1' % dev)
+
+	call('partprobe')
 
 	call('mount /boot')
 	#call('systemctl start boot.mount')
@@ -174,7 +185,7 @@ def main():
 	args = docopt.docopt(__doc__)
 
 	if args['add']:
-		add(args['<device>'])
+		add(args['<device>'], args['--gpt'])
 		update()
 	elif args['remove']:
 		remove(args['<device>'])
