@@ -105,6 +105,7 @@ def update():
 
 	for dev in mbr_devs:
 		call('dd if=/usr/lib/syslinux/bios/mbr.bin of=/dev/%s bs=440 count=1 conv=notrunc' % dev)
+		# TODO: gptmbr?
 	#endfor
 
 	call('sync')
@@ -117,7 +118,7 @@ def add(dev, use_gpt=False):
 	#endif
 
 	if use_gpt:
-		cmd = 'parted --script -a optimal %s -- mklabel gpt mkpart primary fat32 0GB 100MB mkpart primary linux-swap 100MB 1.1GB mkpart primary btrfs 1.1GB -0GB' % dev
+		cmd = 'parted --script -a optimal %s -- mklabel gpt mkpart primary fat32 0% 100MB mkpart primary linux-swap 100MB 1.1GB mkpart primary btrfs 1.1GB 100% set 1 legacy_boot on' % dev
 	else:
 		cmd = '''echo "n
 p
@@ -154,9 +155,16 @@ q
 	assert set(glob.glob('%s?' % dev)) == set('%s%d' % (dev, i) for i in range(1, 4))
 
 	call('mkfs.vfat -n BOOT %s1' % dev)
+
 	call('mkswap -L SWAP %s2' % dev)
-	call('btrfs device add %s3 /' % dev)
+
+	if use_gpt:
+		call('sgdisk -t 2:0657fd6d-a4ab-43c4-84e5-0933c84b4f4f %s' % dev)
+	#endif
+
 	call('swapon %s2' % dev)
+
+	call('btrfs device add %s3 /' % dev)
 #enddef
 
 
