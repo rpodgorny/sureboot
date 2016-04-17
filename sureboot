@@ -21,6 +21,7 @@ import os.path
 import subprocess
 import docopt
 import glob
+import tempfile
 
 
 def call(cmd):
@@ -78,20 +79,17 @@ def update():
 	call('fsck.vfat -a %s' % boot_part)
 	call('mount %s /boot' % boot_part)
 
-	# TODO: use some temporary directory
-	call('mkdir /tmp/sureboot')
+	with tempfile.TemporaryDirectory() as tmpdir:
+		for part in boot_parts:
+			if part == boot_part:
+				continue
 
-	for part in boot_parts:
-		if part == boot_part: continue
-
-		call('fsck.vfat -a %s' % part)
-		call('mount %s /tmp/sureboot' % part)
-		call('rm -rf /tmp/sureboot/*')
-		call('cp -av /boot/* /tmp/sureboot/')
-		call('extlinux --install -r /tmp/sureboot')
-		call('umount /tmp/sureboot')
-
-	call('rmdir /tmp/sureboot')
+			call('fsck.vfat -a %s' % part)
+			call('mount %s %s' % (part, tmpdir))
+			call('rm -rf %s/*' % tmpdir)
+			call('cp -av /boot/* %s' % tmpdir)
+			call('extlinux --install -r %s' % tmpdir)
+			call('umount %s' % tmpdir)
 
 	for dev in mbr_devs:
 		call('dd if=/usr/lib/syslinux/bios/mbr.bin of=/dev/%s bs=440 count=1 conv=notrunc' % dev)
